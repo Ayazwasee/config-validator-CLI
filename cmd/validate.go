@@ -22,31 +22,40 @@ func NewValidateCommand() *cobra.Command {
 			fmt.Printf("📁 Config file: %s\n", configFile)
 			fmt.Printf("📤 JSON output: %v\n", jsonOutput)
 
-			// Parse the .env file
 			env, err := core.ParseEnvFile(configFile)
 			if err != nil {
 				fmt.Println("❌ Error reading config file:", err)
 				return
 			}
 
-			// Check required keys
 			missing := core.CheckRequiredKeys(env, core.RequiredKeys)
+			typeErrors := core.ValidateTypes(env)
 
+			// Output result
 			if jsonOutput {
-				// Output result in JSON
-				json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+				output := map[string]interface{}{
 					"missing_keys": missing,
-					"status":       len(missing) == 0,
-				})
+					"type_errors":  typeErrors,
+					"status":       len(missing) == 0 && len(typeErrors) == 0,
+				}
+				json.NewEncoder(os.Stdout).Encode(output)
 			} else {
-				// Output in plain text
-				if len(missing) == 0 {
-					fmt.Println("✅ All required keys are present.")
-				} else {
+				if len(missing) > 0 {
 					fmt.Println("❌ Missing required keys:")
 					for _, key := range missing {
-						fmt.Println("  -", key)
+						fmt.Printf("  - %s\n", key)
 					}
+				}
+
+				if len(typeErrors) > 0 {
+					fmt.Println("⚠️  Type validation errors:")
+					for _, err := range typeErrors {
+						fmt.Printf("  - %s: %s\n", err.Key, err.Error)
+					}
+				}
+
+				if len(missing) == 0 && len(typeErrors) == 0 {
+					fmt.Println("✅ All required keys and types are valid.")
 				}
 			}
 		},
