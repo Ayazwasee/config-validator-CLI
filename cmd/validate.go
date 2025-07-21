@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"config-validator-cli/core"
 
@@ -22,7 +24,19 @@ func NewValidateCommand() *cobra.Command {
 			fmt.Printf("📁 Config file: %s\n", configFile)
 			fmt.Printf("📤 JSON output: %v\n", jsonOutput)
 
-			env, err := core.ParseEnvFile(configFile)
+			var (
+				env map[string]string
+				err error
+			)
+
+			ext := strings.ToLower(filepath.Ext(configFile))
+
+			if ext == ".yaml" || ext == ".yml" {
+				env, err = core.ParseYAMLFile(configFile)
+			} else {
+				env, err = core.ParseEnvFile(configFile)
+			}
+
 			if err != nil {
 				fmt.Println("❌ Error reading config file:", err)
 				return
@@ -31,7 +45,6 @@ func NewValidateCommand() *cobra.Command {
 			missing := core.CheckRequiredKeys(env, core.RequiredKeys)
 			typeErrors := core.ValidateTypes(env)
 
-			// Output result
 			if jsonOutput {
 				output := map[string]interface{}{
 					"missing_keys": missing,
@@ -61,7 +74,7 @@ func NewValidateCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&configFile, "config", ".env", "Path to config file")
+	cmd.Flags().StringVar(&configFile, "config", ".env", "Path to config file (.env or .yaml)")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Enable JSON output")
 
 	return cmd
